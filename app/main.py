@@ -8,7 +8,6 @@ The lifespan context manager handles startup and shutdown:
 Run with:
     uvicorn app.main:app --reload
 """
-# app/main.py
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
