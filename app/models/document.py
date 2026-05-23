@@ -18,7 +18,6 @@ original document — used for deletion and re-indexing.
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, func
-from sqlalchemy.dialects.postgresql import UUID
 from pgvector.sqlalchemy import Vector
 from app.core.database import Base
 
