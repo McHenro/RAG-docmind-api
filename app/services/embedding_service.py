@@ -1,0 +1,98 @@
+# app/services/embedding_service.py
+"""
+OpenAI embedding API calls.
+
+Two functions:
+  embed_text(text)          → embed a single string
+  embed_batch(texts)        → embed multiple strings in ONE API call (batch)
+
+Why batch embedding?
+  A document split into 20 chunks would require 20 separate API calls if we
+  embedded one chunk at a time.
+  The OpenAI embedding API accepts a LIST of texts in one call — up to 2,048 items.
+  This means: 1 API call regardless of how many chunks we have.
+  Faster. Cheaper. Fewer rate limit issues.
+"""
+import logging
+import asyncio
+from typing import List
+from openai import AsyncOpenAI
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+# Single shared client — reuses the underlying HTTP connection pool
+_client = AsyncOpenAI(api_key=settings.openai_api_key)
+
+# Maximum chunks per single API call (OpenAI's documented limit is 2,048)
+BATCH_LIMIT = 100   # We use 100 to stay well within limits and control memory
+
+
+async def embed_text(text: str) -> List[float]:
+    """
+    Embed a single piece of text.
+    Returns a list of 1,536 floats.
+
+    Used for:
+    - Embedding a user's search query at query time
+    - Testing in isolation
+
+    For indexing many chunks, use embed_batch() instead.
+    """
+    result = await _client.embeddings.create(
+        model=settings.embedding_model,
+        input=text,
+    )
+    return result.data[0].embedding
+
+
+async def embed_batch(texts: List[str]) -> List[List[float]]:
+    """
+    Embed multiple texts in as few API calls as possible.
+
+    If texts has 10 items  → 1 API call  (10 embeddings returned)
+    If texts has 150 items → 2 API calls (100 + 50)
+
+    Returns a list of vectors in the same order as the input texts.
+
+    Args:
+        texts: List of strings to embed. Each string should be one chunk.
+
+    Returns:
+        List of embedding vectors, one per input text.
+    """
+    if not texts:
+        return []
+
+    all_embeddings: List[List[float]] = []
+
+    # Split into batches of BATCH_LIMIT
+    for batch_start in range(0, len(texts), BATCH_LIMIT):
+        batch = texts[batch_start : batch_start + BATCH_LIMIT]
+
+        logger.info(
+            "Embedding batch %d-%d of %d texts",
+            batch_start + 1,
+            batch_start + len(batch),
+            len(texts),
+        )
+
+        try:
+            result = await _client.embeddings.create(
+                model=settings.embedding_model,
+                input=batch,
+            )
+        except Exception as exc:
+            logger.error("OpenAI embedding API error: %s", exc)
+            raise RuntimeError(f"Embedding API failed: {exc}") from exc
+
+        # result.data is a list of Embedding objects sorted by index
+        # We sort explicitly to guarantee order matches input
+        embeddings = sorted(result.data, key=lambda e: e.index)
+        all_embeddings.extend([e.embedding for e in embeddings])
+
+        # Brief pause between batches to be respectful of rate limits
+        if batch_start + BATCH_LIMIT < len(texts):
+            await asyncio.sleep(0.1)
+
+    return all_embeddings
