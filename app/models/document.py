@@ -15,7 +15,6 @@ Why store chunks as separate rows rather than embedding the full document?
 The 'source_document_id' field groups all chunks that belong to the same
 original document — used for deletion and re-indexing.
 """
-import uuid
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, func
 from pgvector.sqlalchemy import Vector

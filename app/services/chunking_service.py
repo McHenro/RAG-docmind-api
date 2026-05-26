@@ -1,19 +1,5 @@
-# app/services/chunking_service.py
 """
 Fixed-size chunking with overlap.
-
-Why chunking at all?
-  OpenAI's embedding model has a token limit per call (~8,191 tokens).
-  Long documents must be split first.
-  But more importantly: smaller, focused chunks produce better vector search results.
-  A 10-page document as one chunk produces one imprecise vector.
-  The same document as 20 focused chunks produces 20 precise, searchable vectors.
-
-Why overlap?
-  Imagine an important sentence right at the boundary between chunk 3 and chunk 4.
-  Without overlap, it is split — neither chunk contains the complete sentence.
-  Overlap means the last N tokens of chunk 3 also appear at the start of chunk 4.
-  The complete sentence exists in at least one chunk.
 
 Chunking is character-based here for simplicity.
   1 token ≈ 4 characters (English text).
@@ -81,7 +67,7 @@ def chunk_text(
         end   = start + chars_per_chunk
         chunk = text[start:end].strip()
 
-        if chunk:   # Skip empty chunks (can occur at end of text)
+        if chunk:  
             chunks.append(chunk)
 
         start += step

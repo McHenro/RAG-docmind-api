@@ -1,4 +1,3 @@
-# app/services/embedding_service.py
 """
 OpenAI embedding API calls.
 

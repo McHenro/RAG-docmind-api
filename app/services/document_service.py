@@ -1,4 +1,3 @@
-# app/services/document_service.py
 """
 Indexing pipeline orchestrator.
 

@@ -7,7 +7,7 @@ Three clear separations:
   - DocumentResponse: summary of a full document (groups chunks)
   - DocumentDetail:   one document's metadata + its chunk count
 """
-from pydantic import BaseModel, HttpUrl, field_validator
+from pydantic import BaseModel, field_validator
 from typing import Optional
 from datetime import datetime
 

@@ -1,4 +1,3 @@
-# app/repositories/document_repository.py
 """
 All database operations for the Document model.
 
