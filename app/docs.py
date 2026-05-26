@@ -48,4 +48,4 @@ json{
 }
 """
 
-
+#. Alembic: `alembic revision --autogenerate -m "create_documents_table"`

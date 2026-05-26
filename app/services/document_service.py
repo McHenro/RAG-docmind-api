@@ -11,7 +11,7 @@ about chunking or embeddings — that is all in here.
 """
 import uuid
 import logging
-from typing import List
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.chunking_service import prepare_document
@@ -100,7 +100,7 @@ async def get_all_documents(db: AsyncSession) -> List[DocumentSummary]:
 async def get_document_by_id(
     db: AsyncSession,
     source_document_id: str,
-) -> DocumentSummary | None:
+) -> Optional[DocumentSummary]:
     """Fetch metadata for one document by its source_document_id."""
     repo = DocumentRepository(db)
     return await repo.get_summary_by_id(source_document_id)
