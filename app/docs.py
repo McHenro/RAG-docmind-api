@@ -72,3 +72,72 @@ json{
 
 
 '''
+
+
+'''
+ Test mapped line by line against the real code:
+
+
+# ─── REAL CODE (document_service.py) ──────────────────────────────────────────
+
+source_document_id = str(uuid.uuid4())   # step 1 — no mock, we own uuid
+chunks = prepare_document(data.content)  # step 2 — no mock, we own chunking
+embeddings = await embed_batch(chunks)   # step 3 — CROSSES BOUNDARY → OpenAI
+repo = DocumentRepository(db)           # step 4a — CROSSES BOUNDARY → PostgreSQL
+documents = await repo.create_chunks()  # step 4b — method on that repo instance
+return IndexingResponse(...)            # step 5 — no mock, just a Pydantic model
+
+
+# ─── TEST CODE ────────────────────────────────────────────────────────────────
+
+# Covers step 3: replaces the real embed_batch function so OpenAI is never called.
+# The return value is [] because the service passes embeddings straight into
+# the mocked create_chunks — which ignores its arguments entirely.
+# The value itself does not matter, only that the real function is not called.
+mock_embed.return_value = []
+
+# Covers step 4a + 4b:
+mock_repo = AsyncMock()                          # 1. create the fake repo instance
+mock_repo.create_chunks.return_value = [None] * 5  # 2. fake what the method returns
+MockRepo.return_value = mock_repo               # 3. make the class produce that instance
+# The service only calls len() on the list returned by create_chunks,
+# so [None] * 5 is enough — we don't need real Document objects.
+The confusion usually comes from MockRepo vs mock_repo — they are two different things:
+
+
+MockRepo        = the fake CLASS    (replaces DocumentRepository itself)
+mock_repo       = the fake INSTANCE (replaces what DocumentRepository(db) returns)
+
+Real code:   repo = DocumentRepository(db)
+With mocks:  repo = MockRepo(db)  →  returns mock_repo
+Think of it like a factory:
+
+MockRepo is the factory
+mock_repo is the product the factory produces
+mock_repo.create_chunks is a method on that product
+'''
+
+'''
+Commands for Pytest: 
+
+Run all tests:
+python -m pytest
+
+
+Run with verbose output (see each test name):
+python -m pytest -v
+
+
+Run a specific file:
+python -m pytest tests/test_chunking.py -v
+
+
+Run a specific class:
+python -m pytest tests/test_routes.py::TestIndexDocumentRoute -v
+
+
+Run a specific single test:
+python -m pytest tests/test_routes.py::TestIndexDocumentRoute::test_returns_201_on_success -v
+
+The -v flag shows each test name and PASSED/FAILED instead of just dots.
+'''
