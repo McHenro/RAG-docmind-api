@@ -11,9 +11,12 @@ Run with:
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from app.core.database import engine, Base
 from app.api.document_routes import document_router
+from app.api.query_routes import query_router
 from app.models import document  # noqa: F401
 
 logging.basicConfig(
@@ -42,12 +45,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.include_router(document_router)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.get("/", tags=["root"])
-async def root():
-    return {
-        "service": "DocMind API",
-        "version": "1.0.0",
-        "docs": "/docs",
-    }
+app.include_router(document_router)
+app.include_router(query_router)
+app.mount("/", StaticFiles(directory="static", html=True), name="static")

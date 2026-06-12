@@ -16,9 +16,12 @@ class Settings(BaseSettings):
     embedding_model: str 
     embedding_dimensions: int 
 
+    # LLM — used for answer generation in the query pipeline
+    llm_model: str = "gpt-4o-mini"
+
     # Chunking defaults (can be overridden per request)
-    chunk_size: int 
-    chunk_overlap: int 
+    chunk_size: int
+    chunk_overlap: int
 
     class Config:
         env_file = ".env"

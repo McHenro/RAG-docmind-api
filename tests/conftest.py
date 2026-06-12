@@ -23,6 +23,7 @@ from httpx import AsyncClient, ASGITransport
 from fastapi import FastAPI
 
 from app.api.document_routes import document_router
+from app.api.query_routes import query_router
 from app.core.database import get_db
 
 
@@ -70,9 +71,10 @@ async def client(mock_db):
         without starting a real HTTP server on a port.
       - Equivalent to Django's `self.client` which bypasses the network layer.
     """
-    # Build a minimal app with only the document routes — no lifespan, no DB startup
+    # Build a minimal app with only the routes we need — no lifespan, no DB startup
     app = FastAPI()
     app.include_router(document_router)
+    app.include_router(query_router)
 
     # Swap the real DB dependency for our mock — this is FastAPI's equivalent
     # of Django's database mocking or fixture overrides

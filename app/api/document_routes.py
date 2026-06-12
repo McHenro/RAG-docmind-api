@@ -11,7 +11,8 @@ All business logic and DB logic lives in services and repositories.
 import logging
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -22,6 +23,7 @@ from app.schemas.document_schema import (
     ErrorResponse,
 )
 from app.services import document_service
+from app.services.file_extraction_service import extract_text
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +69,48 @@ async def index_document(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Embedding API error: {exc}",
         )
+
+
+@document_router.post(
+    "/upload",
+    response_model=IndexingResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        422: {"model": ErrorResponse, "description": "Unsupported file type or empty content"},
+        502: {"model": ErrorResponse, "description": "Embedding API error"},
+    },
+    summary="Upload a file for indexing",
+    description="""
+    Upload a .txt, .pdf, or .docx file. The server extracts the text and runs
+    the same indexing pipeline as POST /v1/documents.
+
+    Form fields:
+    - file   (required) — the file to upload
+    - title  (optional) — defaults to the filename if not provided
+    - source (optional) — e.g. 'faq', 'manual', 'hr_policy'
+    """,
+)
+async def upload_document(
+    file: UploadFile = File(...),
+    title: Optional[str] = Form(None),
+    source: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_db),
+) -> IndexingResponse:
+    try:
+        content = await extract_text(file)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+
+    doc_title = title or file.filename or "Untitled"
+    data = DocumentCreate(title=doc_title, content=content, source=source)
+
+    try:
+        return await document_service.index_document(db, data)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+    except RuntimeError as exc:
+        logger.error("Upload indexing failed: %s", exc)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(exc))
 
 
 @document_router.get(
